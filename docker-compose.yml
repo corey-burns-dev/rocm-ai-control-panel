@@ -1,0 +1,80 @@
+networks:
+  rocm-net:
+    driver: bridge
+
+volumes:
+  sd-data:
+  configs:
+  models:
+  plugins:
+  outputs:
+  extensions:
+  ollama-data:
+
+services:
+  ollama:
+    image: ollama/ollama:rocm
+    container_name: ollama
+    networks:
+      - rocm-net
+    ports:
+      - "11434:11434"
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    volumes:
+      - ollama-data:/root/.ollama
+    group_add:
+      - 984  # video
+      - 988  # render
+    environment:
+      - HSA_OVERRIDE_GFX_VERSION=12.0.1
+      - ROCR_VISIBLE_DEVICES=0
+      - HIP_VISIBLE_DEVICES=0
+
+  fastapi:
+    build: ./fastapi
+    container_name: fastapi
+    networks:
+      - rocm-net
+    ports:
+      - "5000:5000"   # expose FastAPI to host
+    environment:
+      - WEBUI_URL=http://sd-webui:7860  # internal service-to-service URL
+    depends_on:
+      - sd-webui
+      - ollama
+      
+  sd-webui:
+    image: stable-diffusion-webui-rocm:6.4
+    container_name: sd-webui
+    networks:
+      - rocm-net
+    ports:
+      - "7860:7860"
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    volumes:
+      - sd-data:/data
+      - configs:/sd/configs
+      - models:/sd/models
+      - plugins:/sd/plugins
+      - outputs:/sd/outputs
+      - extensions:/sd/extensions
+    group_add:
+      - 984  # video
+      - 988  # render
+    environment:
+      - HSA_OVERRIDE_GFX_VERSION=12.0.1
+      - ROCR_VISIBLE_DEVICES=0
+      - HIP_VISIBLE_DEVICES=0
+      - COMMANDLINE_ARGS=--api --skip-torch-cuda-test --precision full --no-half --medvram --opt-split-attention
+      - GPU_MEMORY_FRACTION=0.85
+    ipc: host
+    shm_size: "8G"
+    security_opt:
+      - seccomp:unconfined
+    cap_add:
+      - SYS_PTRACE
+

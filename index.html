@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Corey’s AI Control Panel</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 20px;
+        background: #1e1e1e;
+        color: #eee;
+      }
+      h2 {
+        margin-top: 30px;
+      }
+      textarea,
+      input,
+      button,
+      select {
+        width: 100%;
+        margin: 5px 0;
+        padding: 8px;
+      }
+      img {
+        max-width: 100%;
+        margin-top: 10px;
+        border: 1px solid #444;
+      }
+      .section {
+        border: 1px solid #444;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+      }
+      .result {
+        margin-top: 10px;
+      }
+      #gallery {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+      }
+      #gallery img {
+        width: 200px;
+        border: 1px solid #555;
+        border-radius: 4px;
+      }
+      #gallery a {
+        display: block;
+        text-align: center;
+        margin-top: 5px;
+        font-size: 0.9em;
+        color: #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🚀 Corey’s AI Control Panel</h1>
+
+    <!-- Chat Section -->
+    <div class="section">
+      <h2>💬 Chat with LLM</h2>
+      <textarea id="chatPrompt" rows="3" placeholder="Type your prompt..."></textarea>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+        <button onclick="sendChat()">Send</button>
+        <button
+          onclick="stopOllama()"
+          style="width: auto; background: #3a1f1f; border: 1px solid #663"
+        >
+          🛑 Stop Ollama (free GPU)
+        </button>
+        <small id="ollamaStatus" style="color: #aaa"></small>
+      </div>
+      <pre id="chatResponse"></pre>
+    </div>
+
+    <!-- Image Generation -->
+    <div class="section">
+      <h2>🖼️ Generate Image</h2>
+      <input id="imgPrompt" placeholder="Enter image prompt..." />
+      <textarea id="negativePrompt" rows="2" placeholder="Negative prompt (optional)">
+        blurry, bad quality, distorted, deformed, ugly, bad anatomy, low resolution, worst quality
+      </textarea>
+
+      <div style="margin: 10px 0; padding: 10px; background: #2a2a2a; border-radius: 4px">
+        <label><strong>Quality Preset:</strong></label>
+        <select id="qualityPreset" onchange="applyPreset()" style="width: 200px">
+          <option value="fast">⚡ Fast (Less GPU load)</option>
+          <option value="balanced" selected>⚖️ Balanced (Recommended)</option>
+          <option value="quality">🎨 High Quality (Slow)</option>
+          <option value="custom">🔧 Custom</option>
+        </select>
+      </div>
+
+      <div style="display: flex; gap: 10px; flex-wrap: wrap">
+        <label
+          >Steps:
+          <input id="steps" type="number" value="40" min="15" max="150" style="width: 100px"
+        /></label>
+        <label
+          >CFG Scale:
+          <input
+            id="cfg"
+            type="number"
+            value="7.5"
+            min="1"
+            max="20"
+            step="0.5"
+            style="width: 100px"
+        /></label>
+        <label
+          >Width:
+          <input
+            id="width"
+            type="number"
+            value="768"
+            min="512"
+            max="1024"
+            step="64"
+            style="width: 100px"
+        /></label>
+        <label
+          >Height:
+          <input
+            id="height"
+            type="number"
+            value="768"
+            min="512"
+            max="1024"
+            step="64"
+            style="width: 100px"
+        /></label>
+        <label
+          >Sampler:
+          <select id="sampler" style="width: 220px">
+            <option>DPM++ 2M Karras</option>
+            <option>DPM++ SDE Karras</option>
+            <option>Euler a</option>
+            <option>Euler</option>
+            <option>LMS</option>
+          </select>
+        </label>
+      </div>
+
+      <div style="margin: 10px 0; padding: 10px; background: #222; border-radius: 4px">
+        <label><input type="checkbox" id="enable_hr" /> Enable High-Res Fix</label>
+        <div id="hr_opts" style="display: none; margin-top: 8px; gap: 10px; flex-wrap: wrap">
+          <label
+            >Scale:
+            <select id="hr_scale" style="width: 120px">
+              <option value="1.5">1.5x</option>
+              <option value="2.0" selected>2.0x</option>
+            </select>
+          </label>
+          <label
+            >Upscaler:
+            <select id="hr_upscaler" style="width: 200px">
+              <option>Latent (bicubic)</option>
+              <option>Latent (nearest)</option>
+            </select>
+          </label>
+          <label
+            >Denoise:
+            <input
+              id="denoise"
+              type="number"
+              value="0.35"
+              min="0"
+              max="1"
+              step="0.05"
+              style="width: 100px"
+          /></label>
+          <label
+            >2nd pass steps:
+            <input id="hr_steps" type="number" value="0" min="0" max="150" style="width: 100px"
+          /></label>
+        </div>
+      </div>
+
+      <div style="margin: 10px 0; padding: 10px; background: #2a2a2a; border-radius: 4px">
+        <label><strong>Model:</strong></label>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap">
+          <select id="modelSelect" style="width: 350px"></select>
+          <button onclick="applyModel()" style="width: auto">Use Model</button>
+        </div>
+        <small id="modelInfo" style="color: #aaa"></small>
+      </div>
+      <button onclick="generateImage()">Generate</button>
+      <div id="genResult" class="result"></div>
+    </div>
+
+    <!-- Image Manipulation -->
+    <div class="section">
+      <h2>🛠️ Image Tools</h2>
+      <input type="file" id="imgFile" />
+      <select id="operation">
+        <option value="grayscale">Grayscale</option>
+        <option value="resize">Resize (512x512)</option>
+        <option value="rotate">Rotate (90°)</option>
+        <option value="blur">Blur</option>
+        <option value="sharpen">Sharpen</option>
+        <option value="watermark">Watermark</option>
+      </select>
+      <button onclick="manipulateImage()">Apply</button>
+      <div id="manipResult" class="result"></div>
+    </div>
+
+    <!-- Pipeline -->
+    <div class="section">
+      <h2>🔗 Pipeline: Generate → Resize → Convert</h2>
+      <input id="pipePrompt" placeholder="Enter image prompt..." />
+      <input id="pipeWidth" type="number" value="512" />
+      <input id="pipeHeight" type="number" value="512" />
+      <select id="pipeFormat">
+        <option value="PNG">PNG</option>
+        <option value="JPEG">JPEG</option>
+        <option value="WEBP">WEBP</option>
+      </select>
+      <button onclick="pipeline()">Run Pipeline</button>
+      <div id="pipeResult" class="result"></div>
+    </div>
+
+    <!-- Gallery -->
+    <div class="section">
+      <h2>🖼️ Gallery / History</h2>
+      <div id="gallery"></div>
+    </div>
+
+    <!-- SVG Logo Generator -->
+    <div class="section">
+      <h2>🧩 SVG Logo Generator</h2>
+      <input id="brand" placeholder="Brand name (e.g., NovaTech)" />
+      <input id="slogan" placeholder="Slogan (optional)" />
+      <div style="display: flex; gap: 10px; flex-wrap: wrap">
+        <label
+          >Engine:
+          <select id="svgEngine" style="width: 180px">
+            <option value="algorithmic" selected>Algorithmic (instant)</option>
+            <option value="ai">AI (Ollama)</option>
+          </select>
+        </label>
+        <label style="display: flex; align-items: center; gap: 6px">
+          <input id="disableLlmSvg" type="checkbox" /> Disable AI SVG (server-wide)
+        </label>
+        <label
+          >Primary Color:
+          <input id="primaryColor" type="color" value="#1e90ff" style="width: 100px"
+        /></label>
+        <label
+          >Secondary Color:
+          <input id="secondaryColor" type="color" value="#111111" style="width: 100px"
+        /></label>
+        <label
+          >Style:
+          <select id="logoStyle" style="width: 220px">
+            <option value="minimal" selected>Minimal</option>
+            <option value="gradient">Gradient</option>
+            <option value="badge">Badge/Emblem</option>
+            <option value="monogram">Monogram</option>
+            <option value="playful">Playful</option>
+            <option value="neon">Neon</option>
+            <option value="symbol-only">Symbol only</option>
+          </select>
+        </label>
+        <label
+          >Creativity:
+          <input
+            id="svgTemp"
+            type="number"
+            value="0.3"
+            min="0"
+            max="1"
+            step="0.1"
+            style="width: 80px"
+        /></label>
+        <label
+          >Speed:
+          <select id="svgSpeed" style="width: 160px">
+            <option value="fast" selected>Fast</option>
+            <option value="balanced">Balanced</option>
+            <option value="detailed">Detailed</option>
+          </select>
+        </label>
+        <label><input id="keepWarm" type="checkbox" checked /> Keep model warm (60s)</label>
+      </div>
+      <div
+        style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 6px 0 2px"
+      >
+        <button
+          onclick="stopOllama()"
+          style="width: auto; background: #3a1f1f; border: 1px solid #663"
+        >
+          🛑 Cancel AI Jobs (unload model)
+        </button>
+        <small id="llmSvgStatus" style="color: #aaa"></small>
+      </div>
+      <textarea
+        id="extraPrompt"
+        rows="2"
+        placeholder="Extra guidance (e.g., futuristic, hexagon motif, rounded corners)"
+      ></textarea>
+      <button onclick="generateSVG()">Generate SVG</button>
+      <div id="svgResult" class="result"></div>
+    </div>
+
+    <script>
+      const API = 'http://localhost:5000';
+
+      // Apply quality presets
+      function applyPreset() {
+        const preset = document.getElementById('qualityPreset').value;
+        const presets = {
+          fast: { steps: 25, cfg: 7.0, width: 512, height: 512 },
+          balanced: { steps: 40, cfg: 7.5, width: 768, height: 768 },
+          quality: { steps: 60, cfg: 8.0, width: 768, height: 768 },
+        };
+
+        if (preset !== 'custom' && presets[preset]) {
+          document.getElementById('steps').value = presets[preset].steps;
+          document.getElementById('cfg').value = presets[preset].cfg;
+          document.getElementById('width').value = presets[preset].width;
+          document.getElementById('height').value = presets[preset].height;
+        }
+      }
+
+      // Detect when user manually changes settings
+      ['steps', 'cfg', 'width', 'height'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('input', function () {
+          document.getElementById('qualityPreset').value = 'custom';
+        });
+      });
+
+      // Utility: show image + download link + add to gallery
+      function showImageWithDownload(containerId, blob, filename = 'output.png') {
+        const url = URL.createObjectURL(blob);
+        document.getElementById(containerId).innerHTML = `
+    <img src="${url}"><br>
+    <a href="${url}" download="${filename}">
+      <button>⬇️ Download</button>
+    </a>
+  `;
+        addToGallery(url, filename);
+      }
+
+      // Add image to gallery
+      function addToGallery(url, filename) {
+        const gallery = document.getElementById('gallery');
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `
+    <img src="${url}">
+    <a href="${url}" download="${filename}">Download</a>
+  `;
+        gallery.prepend(wrapper); // newest first
+      }
+
+      // --- Chat ---
+      async function sendChat() {
+        const prompt = document.getElementById('chatPrompt').value;
+        const res = await fetch(`${API}/chat`, {
+          method: 'POST',
+          body: new URLSearchParams({ prompt }),
+        });
+        const data = await res.json();
+        document.getElementById('chatResponse').innerText = data.response;
+      }
+
+      async function stopOllama() {
+        const status = document.getElementById('ollamaStatus');
+        status.innerText = 'Stopping…';
+        try {
+          const res = await fetch(`${API}/ollama/stop`, { method: 'POST' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const names = (data.stopped || []).join(', ');
+          status.innerText = names ? `Stopped: ${names}` : 'No models were running';
+        } catch (e) {
+          status.innerText = `Error: ${e.message}`;
+        }
+      }
+
+      // --- Image Generation ---
+      async function generateImage() {
+        const prompt = document.getElementById('imgPrompt').value;
+        const negative_prompt = document.getElementById('negativePrompt').value;
+        const steps = document.getElementById('steps').value;
+        const cfg_scale = document.getElementById('cfg').value;
+        const width = document.getElementById('width').value;
+        const height = document.getElementById('height').value;
+        const sampler_name = document.getElementById('sampler').value;
+        const enable_hr = document.getElementById('enable_hr').checked;
+        const hr_scale = document.getElementById('hr_scale')?.value;
+        const hr_upscaler = document.getElementById('hr_upscaler')?.value;
+        const denoising_strength = document.getElementById('denoise')?.value;
+        const hr_second_pass_steps = document.getElementById('hr_steps')?.value;
+
+        document.getElementById('genResult').innerHTML = '⏳ Generating...';
+
+        try {
+          const res = await fetch(`${API}/generate-image`, {
+            method: 'POST',
+            body: new URLSearchParams({
+              prompt,
+              negative_prompt,
+              steps,
+              cfg_scale,
+              width,
+              height,
+              sampler_name,
+              enable_hr,
+              hr_scale,
+              hr_upscaler,
+              denoising_strength,
+              hr_second_pass_steps,
+            }),
+          });
+
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+
+          const blob = await res.blob();
+          console.log('Blob received:', blob.type, blob.size);
+          showImageWithDownload('genResult', blob, 'generated.png');
+        } catch (error) {
+          console.error('Error generating image:', error);
+          document.getElementById('genResult').innerHTML = `❌ Error: ${error.message}`;
+        }
+      }
+
+      // Toggle HR options visibility
+      document.getElementById('enable_hr')?.addEventListener('change', (e) => {
+        document.getElementById('hr_opts').style.display = e.target.checked ? 'flex' : 'none';
+      });
+
+      // Load models into dropdown
+      async function loadModels() {
+        try {
+          const res = await fetch(`${API}/models`);
+          const models = await res.json();
+          const sel = document.getElementById('modelSelect');
+          sel.innerHTML = models
+            .map((m) => `<option value="${m.title}">${m.title}</option>`)
+            .join('');
+          document.getElementById('modelInfo').innerText = models.length
+            ? `Found ${models.length} checkpoints`
+            : 'No models found';
+        } catch (e) {
+          document.getElementById('modelInfo').innerText = 'Failed to load models';
+        }
+      }
+
+      async function applyModel() {
+        const title = document.getElementById('modelSelect').value;
+        const res = await fetch(`${API}/set-model`, {
+          method: 'POST',
+          body: new URLSearchParams({ title }),
+        });
+        if (res.ok) {
+          document.getElementById('modelInfo').innerText = `Active model set to: ${title}`;
+        } else {
+          document.getElementById('modelInfo').innerText = 'Failed to set model';
+        }
+      }
+
+      // Initialize model list on load
+      loadModels();
+
+      // Initialize LLM SVG setting
+      initLlmSvgSetting();
+
+      // --- Image Manipulation ---
+      async function manipulateImage() {
+        const file = document.getElementById('imgFile').files[0];
+        const op = document.getElementById('operation').value;
+        const form = new FormData();
+        form.append('file', file);
+
+        if (op === 'resize') {
+          form.append('width', 512);
+          form.append('height', 512);
+        }
+        if (op === 'rotate') {
+          form.append('deg', 90);
+        }
+        if (op === 'blur') {
+          form.append('radius', 3);
+        }
+        if (op === 'sharpen') {
+          form.append('amount', 1.0);
+        }
+        if (op === 'watermark') {
+          form.append('text', 'Corey’s AI');
+          form.append('opacity', 0.3);
+        }
+
+        const res = await fetch(`${API}/convert/${op}`, { method: 'POST', body: form });
+        const blob = await res.blob();
+        showImageWithDownload('manipResult', blob, `${op}.png`);
+      }
+
+      // --- Pipeline ---
+      async function pipeline() {
+        const prompt = document.getElementById('pipePrompt').value;
+        const width = document.getElementById('pipeWidth').value;
+        const height = document.getElementById('pipeHeight').value;
+        const fmt = document.getElementById('pipeFormat').value;
+
+        const form = new URLSearchParams({ prompt, width, height, fmt });
+        const res = await fetch(`${API}/pipeline/generate-resize-format`, {
+          method: 'POST',
+          body: form,
+        });
+        const blob = await res.blob();
+        showImageWithDownload('pipeResult', blob, `pipeline.${fmt.toLowerCase()}`);
+      }
+
+      // --- SVG Logo Generation ---
+      async function generateSVG() {
+        const brand = document.getElementById('brand').value;
+        const slogan = document.getElementById('slogan').value;
+        const primary_color = document.getElementById('primaryColor').value;
+        const secondary_color = document.getElementById('secondaryColor').value;
+        const style = document.getElementById('logoStyle').value;
+        const temperature = document.getElementById('svgTemp').value;
+        const prompt = document.getElementById('extraPrompt').value;
+        const speed = document.getElementById('svgSpeed').value;
+        const keep_warm_secs = document.getElementById('keepWarm').checked ? 60 : 0;
+        const engine = document.getElementById('svgEngine').value;
+
+        if (!brand) {
+          document.getElementById('svgResult').innerHTML = 'Please enter a brand name.';
+          return;
+        }
+
+        document.getElementById('svgResult').innerHTML = '⏳ Generating SVG...';
+        try {
+          const endpoint = engine === 'ai' ? `${API}/generate-svg` : `${API}/generate-svg-fast`;
+          const payload =
+            engine === 'ai'
+              ? new URLSearchParams({
+                  brand,
+                  slogan,
+                  primary_color,
+                  secondary_color,
+                  style,
+                  temperature,
+                  prompt,
+                  speed,
+                  keep_warm_secs,
+                })
+              : new URLSearchParams({ brand, slogan, primary_color, secondary_color, style });
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            body: payload,
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const svgText = await res.text();
+          const blob = new Blob([svgText], { type: 'image/svg+xml' });
+          const url = URL.createObjectURL(blob);
+          document.getElementById('svgResult').innerHTML = `
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+        <object type="image/svg+xml" data="${url}" style="width: 320px; height: 320px; background:#111; border:1px solid #444;"></object>
+        <a href="${url}" download="${brand.replace(
+            /[^a-z0-9_-]/gi,
+            '_'
+          )}.svg"><button>⬇️ Download SVG</button></a>
+      </div>
+      <details style="margin-top:10px;"><summary>View SVG source</summary><pre style="max-height:240px; overflow:auto; white-space:pre-wrap;">${escapeHtml(
+        svgText
+      )}</pre></details>
+    `;
+        } catch (e) {
+          document.getElementById('svgResult').innerHTML = `❌ Error: ${e.message}`;
+        }
+      }
+
+      function escapeHtml(s) {
+        return s.replace(
+          /[&<>"']/g,
+          (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+        );
+      }
+
+      // --- LLM SVG enable/disable toggle ---
+      async function initLlmSvgSetting() {
+        const checkbox = document.getElementById('disableLlmSvg');
+        const engineSel = document.getElementById('svgEngine');
+        const status = document.getElementById('llmSvgStatus');
+        try {
+          const res = await fetch(`${API}/settings/llm-svg-enabled`);
+          const data = await res.json();
+          const enabled = !!data.enabled;
+          checkbox.checked = !enabled; // checkbox means disable
+          setAiEngineAvailability(enabled);
+          status.innerText = enabled ? 'AI SVG enabled' : 'AI SVG disabled';
+        } catch (e) {
+          status.innerText = 'Could not load AI SVG setting';
+        }
+        checkbox.addEventListener('change', async () => {
+          const enabled = !checkbox.checked;
+          try {
+            const res = await fetch(`${API}/settings/llm-svg-enabled`, {
+              method: 'POST',
+              body: new URLSearchParams({ enabled }),
+            });
+            const data = await res.json();
+            const actuallyEnabled = !!data.enabled;
+            setAiEngineAvailability(actuallyEnabled);
+            status.innerText = actuallyEnabled ? 'AI SVG enabled' : 'AI SVG disabled';
+          } catch (e) {
+            status.innerText = 'Failed to update setting';
+          }
+        });
+      }
+
+      function setAiEngineAvailability(enabled) {
+        const engineSel = document.getElementById('svgEngine');
+        const aiOption = Array.from(engineSel.options).find((o) => o.value === 'ai');
+        if (aiOption) aiOption.disabled = !enabled;
+        if (!enabled && engineSel.value === 'ai') engineSel.value = 'algorithmic';
+      }
+    </script>
+  </body>
+</html>
